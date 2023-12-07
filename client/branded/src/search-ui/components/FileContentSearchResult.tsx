@@ -3,20 +3,22 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
 import classNames from 'classnames'
 import type * as H from 'history'
-import type { Observable } from 'rxjs'
+import VisibilitySensor from 'react-visibility-sensor'
+import type { Observable, Subscription } from 'rxjs'
+import { catchError } from 'rxjs/operators'
 
-import { isErrorLike, pluralize } from '@sourcegraph/common'
+import { asError, isErrorLike, pluralize } from '@sourcegraph/common'
 import type { FetchFileParameters } from '@sourcegraph/shared/src/backend/file'
-import { LineRanking } from '@sourcegraph/shared/src/components/ranking/LineRanking'
-import type { MatchItem } from '@sourcegraph/shared/src/components/ranking/PerFileResultRanking'
-import { ZoektRanking } from '@sourcegraph/shared/src/components/ranking/ZoektRanking'
+import type { MatchGroup } from '@sourcegraph/shared/src/components/ranking/PerFileResultRanking'
+import { HighlightResponseFormat } from '@sourcegraph/shared/src/graphql-operations'
 import {
     type ContentMatch,
+    type ChunkMatch,
     getFileMatchUrl,
     getRepositoryUrl,
     getRevision,
 } from '@sourcegraph/shared/src/search/stream'
-import { isSettingsValid, type SettingsCascadeProps } from '@sourcegraph/shared/src/settings/settings'
+import { type SettingsCascadeProps } from '@sourcegraph/shared/src/settings/settings'
 import type { TelemetryProps } from '@sourcegraph/shared/src/telemetry/telemetryService'
 import { Icon } from '@sourcegraph/wildcard'
 
@@ -28,6 +30,8 @@ import { SearchResultPreviewButton } from './SearchResultPreviewButton'
 
 import resultContainerStyles from './ResultContainer.module.scss'
 import styles from './SearchResult.module.scss'
+
+const DEFAULT_VISIBILITY_OFFSET = { bottom: -500 }
 
 interface Props extends SettingsCascadeProps, TelemetryProps {
     location: H.Location
@@ -74,10 +78,7 @@ interface Props extends SettingsCascadeProps, TelemetryProps {
     index: number
 }
 
-const sumHighlightRanges = (count: number, item: MatchItem): number => count + item.highlightRanges.length
-
 const BY_LINE_RANKING = 'by-line-number'
-const DEFAULT_CONTEXT = 1
 
 export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChildren<Props>> = ({
     containerClassName,
@@ -97,12 +98,12 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
     const repoAtRevisionURL = getRepositoryUrl(result.repository, result.branches)
     const revisionDisplayName = getRevision(result.branches, result.commit)
 
-    const ranking = useMemo(() => {
+    const reranker = useMemo(() => {
         const settings = settingsCascade.final
         if (!isErrorLike(settings) && settings?.experimentalFeatures?.clientSearchResultRanking === BY_LINE_RANKING) {
-            return new LineRanking(5)
+            return rankByLine
         }
-        return new ZoektRanking(3)
+        return rankPassthrough
     }, [settingsCascade])
 
     const newSearchUIEnabled = useMemo(() => {
@@ -113,62 +114,52 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
         return false
     }, [settingsCascade])
 
-    // The number of lines of context to show before and after each match.
-    const context = useMemo(() => {
-        if (location?.pathname === '/search') {
-            // Check if search.contextLines is configured in settings.
-            const contextLinesSetting =
-                isSettingsValid(settingsCascade) && settingsCascade.final?.['search.contextLines']
+    const [hasBeenVisible, setHasBeenVisible] = useState(false)
 
-            if (typeof contextLinesSetting === 'number' && contextLinesSetting >= 0) {
-                return contextLinesSetting
-            }
+    const unhighlightedGroups: MatchGroup[] = useMemo(
+        () => reranker(result.chunkMatches?.map(chunkToMatchGroup) ?? []),
+        [result, reranker]
+    )
+
+    const [expandedGroups, setGroups] = useState(unhighlightedGroups)
+    const collapsedGroups = truncateGroups(expandedGroups, 5)
+
+    useEffect(() => {
+        // Kick off an async fetch of the highlighted code and update
+        // groups with the highlighted code once it comes back.
+        let subscription: Subscription | undefined
+        if (hasBeenVisible) {
+            subscription = fetchHighlightedFileLineRanges(
+                {
+                    repoName: result.repository,
+                    commitID: result.commit || '',
+                    filePath: result.path,
+                    disableTimeout: false,
+                    format: HighlightResponseFormat.HTML_HIGHLIGHT,
+                    ranges: unhighlightedGroups,
+                },
+                false
+            )
+                .pipe(catchError(error => [asError(error)]))
+                .subscribe(res => {
+                    if (!isErrorLike(res)) {
+                        setGroups(
+                            unhighlightedGroups.map((group, i) => ({
+                                ...group,
+                                highlightedLines: res[i],
+                            }))
+                        )
+                    }
+                })
         }
-        return DEFAULT_CONTEXT
-    }, [location, settingsCascade])
+        return () => subscription?.unsubscribe()
+    }, [result, unhighlightedGroups, hasBeenVisible, fetchHighlightedFileLineRanges])
 
-    const items: MatchItem[] = useMemo(
-        () =>
-            result.type === 'content'
-                ? result.chunkMatches?.map(match => ({
-                      highlightRanges: match.ranges.map(range => ({
-                          startLine: range.start.line,
-                          startCharacter: range.start.column,
-                          endLine: range.end.line,
-                          endCharacter: range.end.column,
-                      })),
-                      content: match.content,
-                      startLine: match.contentStart.line,
-                      endLine: match.ranges.at(-1)!.end.line,
-                  })) ||
-                  result.lineMatches?.map(match => ({
-                      highlightRanges: match.offsetAndLengths.map(offsetAndLength => ({
-                          startLine: match.lineNumber,
-                          startCharacter: offsetAndLength[0],
-                          endLine: match.lineNumber,
-                          endCharacter: offsetAndLength[0] + offsetAndLength[1],
-                      })),
-                      content: match.line,
-                      startLine: match.lineNumber,
-                      endLine: match.lineNumber,
-                  })) ||
-                  []
-                : [],
-        [result]
-    )
+    const expandedHighlightCount = countHighlightRanges(expandedGroups)
+    const collapsedHighlightCount = countHighlightRanges(collapsedGroups)
 
-    const expandedMatchGroups = useMemo(() => ranking.expandedResults(items, context), [items, context, ranking])
-    const collapsedMatchGroups = useMemo(() => ranking.collapsedResults(items, context), [items, context, ranking])
-    const collapsedMatchCount = collapsedMatchGroups.matches.length
-
-    const highlightRangesCount = useMemo(() => items.reduce(sumHighlightRanges, 0), [items])
-    const collapsedHighlightRangesCount = useMemo(
-        () => collapsedMatchGroups.matches.reduce(sumHighlightRanges, 0),
-        [collapsedMatchGroups]
-    )
-
-    const hiddenMatchesCount = highlightRangesCount - collapsedHighlightRangesCount
-    const collapsible = !showAllMatches && items.length > collapsedMatchCount
+    const hiddenMatchesCount = expandedHighlightCount - collapsedHighlightCount
+    const collapsible = !showAllMatches && expandedHighlightCount > collapsedHighlightCount
 
     const [expanded, setExpanded] = useState(allExpanded || defaultExpanded)
     useEffect(() => setExpanded(allExpanded || defaultExpanded), [allExpanded, defaultExpanded])
@@ -250,38 +241,125 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
             repoLastFetched={result.repoLastFetched}
             actions={newSearchUIEnabled && <SearchResultPreviewButton result={result} />}
         >
-            <div data-testid="file-search-result" data-expanded={expanded}>
-                <FileMatchChildren
-                    result={result}
-                    grouped={expanded ? expandedMatchGroups.grouped : collapsedMatchGroups.grouped}
-                    fetchHighlightedFileLineRanges={fetchHighlightedFileLineRanges}
-                    settingsCascade={settingsCascade}
-                    telemetryService={telemetryService}
-                    openInNewTab={openInNewTab}
-                />
-                {collapsible && (
-                    <button
-                        type="button"
-                        className={classNames(
-                            styles.toggleMatchesButton,
-                            expanded && styles.toggleMatchesButtonExpanded
-                        )}
-                        onClick={toggle}
-                        data-testid="toggle-matches-container"
-                    >
-                        <Icon aria-hidden={true} svgPath={expanded ? mdiChevronUp : mdiChevronDown} />
-                        <span className={styles.toggleMatchesButtonText}>
-                            {expanded
-                                ? 'Show less'
-                                : `Show ${hiddenMatchesCount} more ${pluralize(
-                                      'match',
-                                      hiddenMatchesCount,
-                                      'matches'
-                                  )}`}
-                        </span>
-                    </button>
-                )}
-            </div>
+            <VisibilitySensor
+                onChange={(visible: boolean) => setHasBeenVisible(visible || hasBeenVisible)}
+                partialVisibility={true}
+                offset={DEFAULT_VISIBILITY_OFFSET}
+            >
+                <div data-testid="file-search-result" data-expanded={expanded}>
+                    <FileMatchChildren
+                        result={result}
+                        grouped={expanded ? expandedGroups : collapsedGroups}
+                        settingsCascade={settingsCascade}
+                        telemetryService={telemetryService}
+                        openInNewTab={openInNewTab}
+                    />
+                    {collapsible && (
+                        <button
+                            type="button"
+                            className={classNames(
+                                styles.toggleMatchesButton,
+                                expanded && styles.toggleMatchesButtonExpanded
+                            )}
+                            onClick={toggle}
+                            data-testid="toggle-matches-container"
+                        >
+                            <Icon aria-hidden={true} svgPath={expanded ? mdiChevronUp : mdiChevronDown} />
+                            <span className={styles.toggleMatchesButtonText}>
+                                {expanded
+                                    ? 'Show less'
+                                    : `Show ${hiddenMatchesCount} more ${pluralize(
+                                        'match',
+                                        hiddenMatchesCount,
+                                        'matches'
+                                    )}`}
+                            </span>
+                        </button>
+                    )}
+                </div>
+            </VisibilitySensor>
         </ResultContainer>
     )
 }
+
+// rankPassthrough is a no-op re-ranker
+const rankPassthrough = (groups: MatchGroup[]): MatchGroup[] => groups
+
+// rankByLine re-ranks a set of groups to order them by starting line number
+const rankByLine = (groups: MatchGroup[]): MatchGroup[] => {
+    const groupsCopy = [...groups]
+    groupsCopy.sort((a, b) => {
+        if (a.startLine < b.startLine) {
+            return -1
+        }
+        if (a.startLine > b.startLine) {
+            return 1
+        }
+        return 0
+    })
+    return groupsCopy
+}
+
+const truncateGroups = (groups: MatchGroup[], maxMatches: number): MatchGroup[] => {
+    const visibleGroups = []
+    let remainingMatches = maxMatches
+    for (const group of groups) {
+        if (remainingMatches === 0) {
+            break
+        } else if (group.matches.length > remainingMatches) {
+            visibleGroups.push(truncateGroup(group, remainingMatches))
+            break
+        }
+        visibleGroups.push(group)
+        remainingMatches -= group.matches.length
+    }
+
+    return visibleGroups
+}
+
+const truncateGroup = (group: MatchGroup, maxMatches: number): MatchGroup => {
+    const keepMatches = group.matches.slice(0, maxMatches)
+    const newStartLine = Math.max(Math.min(...keepMatches.map(match => match.startLine)) - 1, group.startLine)
+    const newEndLine = Math.min(Math.max(...keepMatches.map(match => match.endLine)) + 1, group.endLine)
+    const matchesInKeepContext = group.matches
+        .slice(maxMatches)
+        .filter(match => match.startLine >= newStartLine && match.endLine <= newEndLine)
+    return {
+        ...group,
+        plaintextLines: group.plaintextLines.slice(newStartLine - group.startLine, newEndLine - group.startLine),
+        highlightedLines: group.highlightedLines?.slice(newStartLine - group.startLine, newEndLine - group.startLine),
+        matches: [...keepMatches, ...matchesInKeepContext],
+        startLine: newStartLine,
+        endLine: newEndLine,
+    }
+}
+
+const chunkToMatchGroup = (chunk: ChunkMatch): MatchGroup => {
+    const matches = chunk.ranges.map(range => ({
+        startLine: range.start.line,
+        startCharacter: range.start.column,
+        endLine: range.end.line,
+        endCharacter: range.end.column,
+    }))
+
+    const plaintextLines = chunk.content.split(/\r?\n/)
+    let minPosition = { line: Number.MAX_VALUE, character: Number.MAX_VALUE }
+    for (const match of matches) {
+        const position = { line: match.startLine + 1, character: match.startCharacter + 1 }
+        if (position.line <= minPosition.line && position.character < minPosition.character) {
+            minPosition = position
+        }
+    }
+
+    return {
+        plaintextLines,
+        highlightedLines: undefined,
+        matches,
+        position: minPosition,
+        startLine: chunk.contentStart.line,
+        endLine: chunk.contentStart.line + plaintextLines.length,
+    }
+}
+
+const countHighlightRanges = (groups: MatchGroup[]): number =>
+    groups.reduce((count, group) => count + group.matches.length, 0)

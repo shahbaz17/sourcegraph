@@ -95,7 +95,7 @@ export interface LineMatch {
     offsetAndLengths: number[][]
 }
 
-interface ChunkMatch {
+export interface ChunkMatch {
     content: string
     contentStart: Location
     ranges: Range[]
