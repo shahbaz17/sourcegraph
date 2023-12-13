@@ -3,7 +3,6 @@ package dbconn
 import (
 	"fmt"
 	"go/types"
-	"os"
 	"slices"
 	"strings"
 
@@ -40,16 +39,6 @@ var allowedToImport = []string{
 const dbconnPath = "github.com/sourcegraph/sourcegraph/internal/database/dbconn"
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	f, err := os.Create("/tmp/bazel_log/" + strings.ReplaceAll(pass.Pkg.Path(), "/", "_") + ".txt")
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	if _, err := fmt.Fprintf(f, "THE PACKAGE %q %q\n", pass.Pkg.Path(), pass.Pkg.Name()); err != nil {
-		return nil, err
-	}
-
 	// skip builds for packages outside
 	if !strings.HasPrefix(pass.Pkg.Path(), "github.com/sourcegraph/sourcegraph") {
 		return nil, nil
