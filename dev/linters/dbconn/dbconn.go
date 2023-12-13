@@ -39,8 +39,8 @@ var allowedToImport = []string{
 const dbconnPath = "github.com/sourcegraph/sourcegraph/internal/database/dbconn"
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	// skip builds for packages outside
-	if !strings.HasPrefix(pass.Pkg.Path(), "github.com/sourcegraph/sourcegraph") {
+	// skip builds for packages outside, or for non-cmd
+	if !strings.HasPrefix(pass.Pkg.Path(), "github.com/sourcegraph/sourcegraph/cmd/") {
 		return nil, nil
 	}
 
