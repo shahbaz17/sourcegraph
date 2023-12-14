@@ -111,45 +111,43 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
         return false
     }, [settingsCascade])
 
-    const [hasBeenVisible, setHasBeenVisible] = useState(false)
-
     const unhighlightedGroups: MatchGroup[] = useMemo(
         () => reranker(result.chunkMatches?.map(chunkToMatchGroup) ?? []),
         [result, reranker]
     )
 
-    const [expandedGroups, setGroups] = useState(unhighlightedGroups)
+    const [expandedGroups, setExpandedGroups] = useState(unhighlightedGroups)
     const collapsedGroups = truncateGroups(expandedGroups, 5)
 
-    useEffect(() => {
-        // Kick off an async fetch of the highlighted code and update
-        // groups with the highlighted code once it comes back.
-        let subscription: Subscription | undefined
+    const [hasBeenVisible, setHasBeenVisible] = useState(false)
+    const onVisible = useCallback(() => {
         if (hasBeenVisible) {
-            subscription = fetchHighlightedFileLineRanges(
-                {
-                    repoName: result.repository,
-                    commitID: result.commit || '',
-                    filePath: result.path,
-                    disableTimeout: false,
-                    format: HighlightResponseFormat.HTML_HIGHLIGHT,
-                    ranges: unhighlightedGroups,
-                },
-                false
-            )
-                .pipe(catchError(error => [asError(error)]))
-                .subscribe(res => {
-                    if (!isErrorLike(res)) {
-                        setGroups(
-                            unhighlightedGroups.map((group, i) => ({
-                                ...group,
-                                highlightedHTMLRows: res[i],
-                            }))
-                        )
-                    }
-                })
+            return
         }
-        return () => subscription?.unsubscribe()
+        setHasBeenVisible(true)
+        const subscription = fetchHighlightedFileLineRanges(
+            {
+                repoName: result.repository,
+                commitID: result.commit || '',
+                filePath: result.path,
+                disableTimeout: false,
+                format: HighlightResponseFormat.HTML_HIGHLIGHT,
+                ranges: unhighlightedGroups,
+            },
+            false
+        )
+            .pipe(catchError(error => [asError(error)]))
+            .subscribe(res => {
+                if (!isErrorLike(res)) {
+                    setExpandedGroups(
+                        unhighlightedGroups.map((group, i) => ({
+                            ...group,
+                            highlightedHTMLRows: res[i],
+                        }))
+                    )
+                }
+            })
+        return () => subscription.unsubscribe()
     }, [result, unhighlightedGroups, hasBeenVisible, fetchHighlightedFileLineRanges])
 
     const expandedHighlightCount = countHighlightRanges(expandedGroups)
@@ -239,7 +237,7 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
             actions={newSearchUIEnabled && <SearchResultPreviewButton result={result} />}
         >
             <VisibilitySensor
-                onChange={(visible: boolean) => setHasBeenVisible(visible || hasBeenVisible)}
+                onChange={(visible: boolean) => visible && onVisible()}
                 partialVisibility={true}
                 offset={DEFAULT_VISIBILITY_OFFSET}
             >
