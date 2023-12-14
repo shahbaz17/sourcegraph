@@ -264,10 +264,10 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
                                 {expanded
                                     ? 'Show less'
                                     : `Show ${hiddenMatchesCount} more ${pluralize(
-                                        'match',
-                                        hiddenMatchesCount,
-                                        'matches'
-                                    )}`}
+                                          'match',
+                                          hiddenMatchesCount,
+                                          'matches'
+                                      )}`}
                             </span>
                         </button>
                     )}
@@ -314,7 +314,10 @@ const truncateGroups = (groups: MatchGroup[], maxMatches: number): MatchGroup[] 
 
 const truncateGroup = (group: MatchGroup, maxMatches: number, contextLines: number): MatchGroup => {
     const keepMatches = group.matches.slice(0, maxMatches)
-    const newStartLine = Math.max(Math.min(...keepMatches.map(match => match.startLine)) - contextLines, group.startLine)
+    const newStartLine = Math.max(
+        Math.min(...keepMatches.map(match => match.startLine)) - contextLines,
+        group.startLine
+    )
     const newEndLine = Math.min(Math.max(...keepMatches.map(match => match.endLine)) + contextLines, group.endLine)
     const matchesInKeepContext = group.matches
         .slice(maxMatches)
