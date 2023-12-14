@@ -927,6 +927,7 @@ const CollapsibleLocationGroup: React.FunctionComponent<
                                             href={reference.url}
                                             className={classNames(styles.locationLink, locationActive)}
                                         >
+                                            // TODO: fix this
                                             <CodeExcerpt
                                                 className={styles.locationLinkCodeExcerpt}
                                                 commitID={reference.commitID}
