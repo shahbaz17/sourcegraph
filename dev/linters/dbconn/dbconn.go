@@ -1,8 +1,11 @@
 package dbconn
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/types"
+	"os"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -38,9 +41,11 @@ var allowedToImport = []string{
 
 const dbconnPath = "github.com/sourcegraph/sourcegraph/internal/database/dbconn"
 
+var cmdPkgRegex = regexp.MustCompile(`^github\.com/sourcegraph/sourcegraph/cmd/[\w-_]+$`)
+
 func run(pass *analysis.Pass) (interface{}, error) {
 	// skip builds for packages outside, or for non-cmd
-	if !strings.HasPrefix(pass.Pkg.Path(), "github.com/sourcegraph/sourcegraph/cmd/") {
+	if !cmdPkgRegex.MatchString(pass.Pkg.Path()) {
 		return nil, nil
 	}
 
@@ -49,16 +54,34 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	if dfs(pass.Pkg) {
+	f, err := os.Create("/tmp/bazel_log/" + strings.ReplaceAll(pass.Pkg.Path(), "/", "_") + ".txt")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	isInTree := dfs(pass.Pkg)
+	b, _ := json.MarshalIndent(importTree, "", "\t")
+	fmt.Fprint(f, string(b))
+
+	if isInTree {
 		return nil, fmt.Errorf("package %q is not allowed to import %q (directly or transitively)", pass.Pkg.Path(), dbconnPath)
 	}
 
 	return nil, nil
 }
 
+var importTree = make(map[string][]string)
+
 var visited = make(map[string]struct{})
 
 func dfs(pkg *types.Package) (found bool) {
+	imports := make([]string, 0, len(pkg.Imports()))
+	for _, i := range pkg.Imports() {
+		imports = append(imports, i.Path())
+	}
+	importTree[pkg.Path()] = imports
+
 	for _, pkg := range pkg.Imports() {
 		if pkg.Path() == dbconnPath {
 			return true

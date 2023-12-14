@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"net/url"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/utils/strings/slices"
 
 	"github.com/sourcegraph/sourcegraph/internal/conf/confdefaults"
+	"github.com/sourcegraph/sourcegraph/internal/database/dbconn"
 	"github.com/sourcegraph/sourcegraph/internal/env"
 	"github.com/sourcegraph/sourcegraph/internal/executor/types"
 	"github.com/sourcegraph/sourcegraph/internal/hostname"
@@ -219,6 +221,8 @@ func (c *Config) Load() {
 	hn := hostname.Get()
 	// Be unique but also descriptive.
 	c.WorkerHostname = hn + "-" + uuid.New().String()
+
+	dbconn.WithBulkInsertion(context.TODO(), false)
 }
 
 func getKubeConfigPath() string {

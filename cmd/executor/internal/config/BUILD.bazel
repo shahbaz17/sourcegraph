@@ -12,6 +12,7 @@ go_library(
     visibility = ["//cmd/executor:__subpackages__"],
     deps = [
         "//internal/conf/confdefaults",
+        "//internal/database/dbconn",
         "//internal/env",
         "//internal/executor/types",
         "//internal/hostname",
