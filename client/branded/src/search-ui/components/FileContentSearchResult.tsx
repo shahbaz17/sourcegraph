@@ -143,7 +143,7 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
                         setGroups(
                             unhighlightedGroups.map((group, i) => ({
                                 ...group,
-                                highlightedLines: res[i],
+                                highlightedHTMLRows: res[i],
                             }))
                         )
                     }
