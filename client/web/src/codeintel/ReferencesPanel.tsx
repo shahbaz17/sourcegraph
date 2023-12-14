@@ -7,7 +7,6 @@ import { capitalize } from 'lodash'
 import { useNavigate, useLocation } from 'react-router-dom'
 import VisibilitySensor from 'react-visibility-sensor'
 import { type Observable } from 'rxjs'
-import { map } from 'rxjs/operators'
 
 import { CodeExcerpt } from '@sourcegraph/branded'
 import type { HoveredToken } from '@sourcegraph/codeintellify'
@@ -809,7 +808,7 @@ const CollapsibleLocationGroup: React.FunctionComponent<
             return
         }
         setHasBeenVisible(true)
-        fetchHighlightedFileLineRanges(
+        const subscription = fetchHighlightedFileLineRanges(
             {
                 repoName: repo,
                 commitID,
@@ -819,8 +818,9 @@ const CollapsibleLocationGroup: React.FunctionComponent<
                 ranges,
             },
             false
-        ).pipe(map(setHighlightedRanges))
-    }, [fetchHighlightedFileLineRanges, repo, commitID, file, ranges])
+        ).subscribe(setHighlightedRanges)
+        return () => subscription.unsubscribe()
+    }, [fetchHighlightedFileLineRanges, repo, commitID, file, ranges, hasBeenVisible])
 
     const open = isOpen(group.path) ?? true
 
