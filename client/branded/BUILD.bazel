@@ -215,7 +215,6 @@ ts_project(
         "src/components/panel/TabbedPanelContent.test.tsx",
         "src/search-ui/components/CodeExcerpt.test.tsx",
         "src/search-ui/components/FileContentSearchResult.test.tsx",
-        "src/search-ui/components/FileMatchChildren.test.tsx",
         "src/search-ui/components/RepoFileLink.test.tsx",
         "src/search-ui/components/SyntaxHighlightedSearchQuery.test.tsx",
         "src/search-ui/input/LazyQueryInput.test.tsx",

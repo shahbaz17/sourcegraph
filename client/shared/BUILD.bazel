@@ -227,7 +227,6 @@ ts_project(
         "src/components/icons.tsx",
         "src/components/languageIcons.tsx",
         "src/components/ranking/PerFileResultRanking.ts",
-        "src/components/ranking/PerFileResultRankingTestHelpers.ts",
         "src/components/utils/size.ts",
         "src/contributions/contributions.ts",
         "src/deprecated-theme-utils.ts",

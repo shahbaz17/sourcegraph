@@ -269,10 +269,10 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
                                 {expanded
                                     ? 'Show less'
                                     : `Show ${hiddenMatchesCount} more ${pluralize(
-                                        'match',
-                                        hiddenMatchesCount,
-                                        'matches'
-                                    )}`}
+                                          'match',
+                                          hiddenMatchesCount,
+                                          'matches'
+                                      )}`}
                             </span>
                         </button>
                     )}
@@ -327,7 +327,10 @@ const truncateGroup = (group: MatchGroup, maxMatches: number): MatchGroup => {
     return {
         ...group,
         plaintextLines: group.plaintextLines.slice(newStartLine - group.startLine, newEndLine - group.startLine),
-        highlightedLines: group.highlightedLines?.slice(newStartLine - group.startLine, newEndLine - group.startLine),
+        highlightedHTMLRows: group.highlightedHTMLRows?.slice(
+            newStartLine - group.startLine,
+            newEndLine - group.startLine
+        ),
         matches: [...keepMatches, ...matchesInKeepContext],
         startLine: newStartLine,
         endLine: newEndLine,
@@ -353,7 +356,7 @@ const chunkToMatchGroup = (chunk: ChunkMatch): MatchGroup => {
 
     return {
         plaintextLines,
-        highlightedLines: undefined,
+        highlightedHTMLRows: undefined, // populated lazily
         matches,
         position: minPosition,
         startLine: chunk.contentStart.line,
