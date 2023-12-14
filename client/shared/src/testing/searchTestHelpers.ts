@@ -614,13 +614,13 @@ export const FILE_LINES_SIMPLE = HIGHLIGHTED_FILE_LINES_SIMPLE.map(extractText)
 export const FILE_LINES_LONG = HIGHLIGHTED_FILE_LINES_LONG.map(extractText)
 
 export const HIGHLIGHTED_FILE_LINES_REQUEST = sinon.fake((parameters: FetchFileParameters) =>
-    of(parameters.ranges.map(range => HIGHLIGHTED_FILE_LINES[0].slice(range.startLine, range.endLine)))
+    of(parameters.ranges.map(range => HIGHLIGHTED_FILE_LINES.slice(range.startLine, range.endLine)))
 )
 export const HIGHLIGHTED_FILE_LINES_SIMPLE_REQUEST = sinon.fake((parameters: FetchFileParameters) =>
-    of(parameters.ranges.map(range => HIGHLIGHTED_FILE_LINES_SIMPLE[0].slice(range.startLine, range.endLine)))
+    of(parameters.ranges.map(range => HIGHLIGHTED_FILE_LINES_SIMPLE.slice(range.startLine, range.endLine)))
 )
 export const HIGHLIGHTED_FILE_LINES_LONG_REQUEST = sinon.fake((parameters: FetchFileParameters) =>
-    of(parameters.ranges.map(range => HIGHLIGHTED_FILE_LINES_LONG[0].slice(range.startLine, range.endLine)))
+    of(parameters.ranges.map(range => HIGHLIGHTED_FILE_LINES_LONG.slice(range.startLine, range.endLine)))
 )
 
 export const NOOP_SETTINGS_CASCADE = {
