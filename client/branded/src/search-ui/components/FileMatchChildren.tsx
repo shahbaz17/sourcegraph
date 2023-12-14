@@ -72,7 +72,7 @@ export const FileMatchChildren: React.FunctionComponent<React.PropsWithChildren<
                                 endLine={group.endLine}
                                 highlightRanges={group.matches}
                                 plaintextLines={group.plaintextLines}
-                                highlightedLines={group.highlightedLines}
+                                highlightedLines={group.highlightedHTMLRows}
                                 onCopy={logEventOnCopy}
                             />
                         </div>

@@ -36,4 +36,6 @@ describe('FileContentSearchResult', () => {
         expect(getAllByTestId(container, 'result-container').length).toBe(1)
         expect(getAllByTestId(container, 'file-search-result').length).toBe(1)
     })
+
+    // TODO: add test that the collapse shows if there are too many results
 })
