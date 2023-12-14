@@ -21,11 +21,8 @@ import { FileContentSearchResult } from './FileContentSearchResult'
 
 describe('FileContentSearchResult', () => {
     afterAll(cleanup)
-    const history = createBrowserHistory()
-    history.replace({ pathname: '/search' })
     const defaultProps = {
         index: 0,
-        location: history.location,
         result: CHUNK_MATCH_RESULT,
         icon: FileIcon,
         onSelect: sinon.spy(),

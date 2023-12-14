@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
 import classNames from 'classnames'
-import type * as H from 'history'
 import VisibilitySensor from 'react-visibility-sensor'
 import type { Observable, Subscription } from 'rxjs'
 import { catchError } from 'rxjs/operators'
@@ -34,7 +33,6 @@ import styles from './SearchResult.module.scss'
 const DEFAULT_VISIBILITY_OFFSET = { bottom: -500 }
 
 interface Props extends SettingsCascadeProps, TelemetryProps {
-    location: H.Location
     /**
      * The file match search result.
      */
@@ -84,7 +82,6 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
     containerClassName,
     result,
     settingsCascade,
-    location,
     index,
     repoDisplayName,
     defaultExpanded,
@@ -269,10 +266,10 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
                                 {expanded
                                     ? 'Show less'
                                     : `Show ${hiddenMatchesCount} more ${pluralize(
-                                          'match',
-                                          hiddenMatchesCount,
-                                          'matches'
-                                      )}`}
+                                        'match',
+                                        hiddenMatchesCount,
+                                        'matches'
+                                    )}`}
                             </span>
                         </button>
                     )}
