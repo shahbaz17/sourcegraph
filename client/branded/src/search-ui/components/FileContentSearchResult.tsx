@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
 import classNames from 'classnames'
 import VisibilitySensor from 'react-visibility-sensor'
-import type { Observable, Subscription } from 'rxjs'
+import type { Observable } from 'rxjs'
 import { catchError } from 'rxjs/operators'
 
 import { asError, isErrorLike, pluralize } from '@sourcegraph/common'
