@@ -264,10 +264,10 @@ export const FileContentSearchResult: React.FunctionComponent<React.PropsWithChi
                                 {expanded
                                     ? 'Show less'
                                     : `Show ${hiddenMatchesCount} more ${pluralize(
-                                          'match',
-                                          hiddenMatchesCount,
-                                          'matches'
-                                      )}`}
+                                        'match',
+                                        hiddenMatchesCount,
+                                        'matches'
+                                    )}`}
                             </span>
                         </button>
                     )}
@@ -302,7 +302,7 @@ const truncateGroups = (groups: MatchGroup[], maxMatches: number): MatchGroup[] 
         if (remainingMatches === 0) {
             break
         } else if (group.matches.length > remainingMatches) {
-            visibleGroups.push(truncateGroup(group, remainingMatches))
+            visibleGroups.push(truncateGroup(group, remainingMatches, 1))
             break
         }
         visibleGroups.push(group)
@@ -312,19 +312,19 @@ const truncateGroups = (groups: MatchGroup[], maxMatches: number): MatchGroup[] 
     return visibleGroups
 }
 
-const truncateGroup = (group: MatchGroup, maxMatches: number): MatchGroup => {
+const truncateGroup = (group: MatchGroup, maxMatches: number, contextLines: number): MatchGroup => {
     const keepMatches = group.matches.slice(0, maxMatches)
-    const newStartLine = Math.max(Math.min(...keepMatches.map(match => match.startLine)) - 1, group.startLine)
-    const newEndLine = Math.min(Math.max(...keepMatches.map(match => match.endLine)) + 1, group.endLine)
+    const newStartLine = Math.max(Math.min(...keepMatches.map(match => match.startLine)) - contextLines, group.startLine)
+    const newEndLine = Math.min(Math.max(...keepMatches.map(match => match.endLine)) + contextLines, group.endLine)
     const matchesInKeepContext = group.matches
         .slice(maxMatches)
         .filter(match => match.startLine >= newStartLine && match.endLine <= newEndLine)
     return {
         ...group,
-        plaintextLines: group.plaintextLines.slice(newStartLine - group.startLine, newEndLine - group.startLine),
+        plaintextLines: group.plaintextLines.slice(newStartLine - group.startLine, newEndLine - group.startLine + 1),
         highlightedHTMLRows: group.highlightedHTMLRows?.slice(
             newStartLine - group.startLine,
-            newEndLine - group.startLine
+            newEndLine - group.startLine + 1
         ),
         matches: [...keepMatches, ...matchesInKeepContext],
         startLine: newStartLine,
