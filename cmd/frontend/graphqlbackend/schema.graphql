@@ -5812,7 +5812,10 @@ interface File2 {
         endLine: Int
     ): HighlightedFile!
     """
-    The language(s) determined based on the file's contents, paths etc.
+    The language(s) determined based on the file's name and contents.
+
+    The resulting array may be empty if no language could be determined,
+    or it may have multiple entries if the language is ambiguous.
     """
     languages: [String!]!
 }
@@ -5919,7 +5922,10 @@ type VirtualFile implements File2 {
         endLine: Int
     ): HighlightedFile!
     """
-    The language(s) determined based on the file's contents, paths etc.
+    The language(s) determined based on the file's name and contents.
+
+    The resulting array may be empty if no language could be determined,
+    or it may have multiple entries if the language is ambiguous.
     """
     languages: [String!]!
 }
@@ -6066,7 +6072,10 @@ type GitBlob implements TreeEntry & File2 {
         endLine: Int
     ): HighlightedFile!
     """
-    The language(s) determined based on the file's contents, paths etc.
+    The language(s) determined based on the file's name and contents.
+
+    The resulting array may be empty if no language could be determined,
+    or it may have multiple entries if the language is ambiguous.
     """
     languages: [String!]!
     """
